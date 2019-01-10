@@ -9,6 +9,9 @@ var HeadsetDetection = {
     exec(null, null, "HeadsetDetection", "registerRemoteEvents", []);
     this.actionCallback = actionCallback;
   },
+  headsetType: function(successCallback, errorCallback) {
+    exec(successCallback, errorCallback, "HeadsetDetection", "headsetType", []);
+  },
   remoteHeadsetRemoved: function() {
     this.actionCallback && this.actionCallback('headsetRemoved');
   },

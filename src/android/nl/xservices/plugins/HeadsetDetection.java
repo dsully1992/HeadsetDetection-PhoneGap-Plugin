@@ -7,6 +7,7 @@ import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaWebView;
 
 import android.content.Context;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -23,9 +24,12 @@ public class HeadsetDetection extends CordovaPlugin {
 
   private static final String ACTION_DETECT = "detect";
   private static final String ACTION_EVENT = "registerRemoteEvents";
+  private static final String ACTION_TYPE = "headsetType";
   protected static CordovaWebView mCachedWebView = null;
 
   BroadcastReceiver receiver;
+  AudioManager audioManager;
+  AudioDeviceInfo[] deviceTypes;
 
   public HeadsetDetection() {
       this.receiver = null;
@@ -35,12 +39,15 @@ public class HeadsetDetection extends CordovaPlugin {
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
       super.initialize(cordova, webView);
       mCachedWebView = webView;
+      audioManager = (AudioManager) cordova.getActivity().getSystemService(Context.AUDIO_SERVICE);
       IntentFilter intentFilter = new IntentFilter();
       intentFilter.addAction(Intent.ACTION_HEADSET_PLUG);
       this.receiver = new BroadcastReceiver() {
           @Override
           public void onReceive(Context context, Intent intent) {
               if (intent.getAction().equals(Intent.ACTION_HEADSET_PLUG)) {
+                  deviceTypes = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+
                   int state = intent.getIntExtra("state", -1);
                   switch (state) {
                   case 0:
@@ -66,6 +73,9 @@ public class HeadsetDetection extends CordovaPlugin {
       if (ACTION_DETECT.equals(action) || ACTION_EVENT.equals(action)) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, isHeadsetEnabled()));
         return true;
+      } else if (ACTION_TYPE.equals(action)) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, getDeviceTypes()));
+        return true;
       } else {
         callbackContext.error("headsetdetection." + action + " is not a supported function. Did you mean '" + ACTION_DETECT + "'?");
         return false;
@@ -77,10 +87,17 @@ public class HeadsetDetection extends CordovaPlugin {
   }
 
   private boolean isHeadsetEnabled() {
-    final AudioManager audioManager = (AudioManager) cordova.getActivity().getSystemService(Context.AUDIO_SERVICE);
     return audioManager.isWiredHeadsetOn() ||
         audioManager.isBluetoothA2dpOn() ||
         audioManager.isBluetoothScoOn();
+  }
+
+  private JSONArray getDeviceTypes() {
+    JSONArray devices = new JSONArray();
+    for (AudioDeviceInfo device : this.deviceTypes) {
+        devices.put("type:" + device.getType());
+    }
+    return devices;
   }
 
   public void onDestroy() {
